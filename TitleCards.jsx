@@ -1,67 +1,55 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import { YOUTUBE_API_KEY, YOUTUBE_BASE_URL } from './config';
+import Player from './Player';
 import './TitleCards.css';
-import cards_data from '../../assets/cards/Cards_data';
-import { Link } from 'react-router-dom';
-import { TMDB_Access_Key } from '../../config';
 
-const TitleCards = ({ title, category }) => {
-  const apiFetchOptions = {
-    method: 'GET',
-    headers: {
-      accept: 'application/json',
-      Authorization: `Bearer ${TMDB_Access_Key}`
+const TitleCards = ({ title, image }) => {
+  const [videoId, setVideoId] = useState(null);
+  const [showPlayer, setShowPlayer] = useState(false);
+
+  const fetchTrailer = async () => {
+    try {
+      const response = await axios.get(`${YOUTUBE_BASE_URL}/search`, {
+        params: {
+          key: YOUTUBE_API_KEY,
+          q: `${title} trailer`,
+          part: 'snippet',
+          maxResults: 1,
+          type: 'video'
+        }
+      });
+      setVideoId(response.data.items[0].id.videoId);
+    } catch (error) {
+      console.error('Error fetching trailer:', error);
     }
   };
 
-  const [apiData, setApiData] = useState([]);
-  const cardsRef = useRef();
-
-  const handleWheel = (event) => {
-    event.preventDefault();
-    cardsRef.current.scrollLeft += event.deltaY;
+  const handlePlay = () => {
+    if (!videoId) {
+      fetchTrailer();
+    }
+    setShowPlayer(true);
   };
 
-  useEffect(() => {
-    fetch(
-      `https://api.themoviedb.org/3/movie/${category ? category : 'now_playing'}?language=en-US&page=1`,
-      apiFetchOptions
-    )
-      .then((response) => response.json())
-      .then((response) => setApiData(response.results))
-      .catch((err) => console.error(err));
-
-    cardsRef.current.addEventListener('wheel', handleWheel);
-
-    // Cleanup event listener on unmount
-    return () => {
-      cardsRef.current.removeEventListener('wheel', handleWheel);
-    };
-  }, [category]);
-
-  const dataToPass = { name: 'John Doe', age: 25 };
-
   return (
-    <div className="title-cards">
-      <h2>{title ? title : 'Popular on Netflix'}</h2>
-      <div className="card-list" ref={cardsRef}>
-        {apiData.map((card, index) => {
-          return (
-            <Link
-              to={{ pathname: `/player/${card.id}`, state: dataToPass }}
-              className="card"
-              key={index}
-            >
-              <img
-                src={`https://image.tmdb.org/t/p/w500${card.backdrop_path}`}
-                alt={card.original_title}
-              />
-              <p>{card.original_title}</p>
-            </Link>
-          );
-        })}
+    <div className="title-card">
+      <img src={image} alt={title} onClick={handlePlay} />
+      <div className="title-info">
+        <h3>{title}</h3>
+        <button onClick={handlePlay}>Play Trailer</button>
       </div>
+      {showPlayer && videoId && (
+        <Player 
+          videoId={videoId} 
+          onClose={() => setShowPlayer(false)} 
+        />
+      )}
     </div>
   );
 };
+
+export default TitleCards;
+
 
 export default TitleCards;
